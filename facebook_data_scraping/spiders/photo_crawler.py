@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+
 import scrapy
 import re
 import json
-import urlparse
+import urllib.parse
 
 
 from bs4 import BeautifulSoup
@@ -29,6 +30,8 @@ class PhotoCrawlerSpider(scrapy.Spider):
 
     def __init__(self, *args, **kwargs):
       super(PhotoCrawlerSpider, self).__init__(*args, **kwargs)
+
+      self.debugFile = open('debugFile', 'w')
       self.email = kwargs.get('email')
       self.password = kwargs.get('password')
       self.target_username = kwargs.get('target_username')
@@ -45,26 +48,30 @@ class PhotoCrawlerSpider(scrapy.Spider):
         return scrapy.Request("{0}/{1}?v=photos".format(self.top_url, self.target_username), callback=self.parse_user_photo_page)
 
     def parse_user_photo_page(self, response):
-        def extract_album_id(s):
-            p = re.compile(ur'set=t\.(\d*)')
+        def extract_album_id(s): 
+            p = re.compile(r'set=t\.(\d*)')
             search = re.search(p, s)
             return search.group(1)
 
         def extract_user_id(s):
-            p = re.compile(ur'"USER_ID":"(\d*)"')
+            p = re.compile(r'"USER_ID":"(\d*)"')
             search = re.search(p, s)
             return search.group(1)
 
-        self.album_id = extract_album_id(response.body)
-        self.user_id = extract_user_id(response.body)
+        utf8ResponseBody = self.getUtf8ResponseBody(response)
+        self.album_id = extract_album_id(utf8ResponseBody)
+        self.user_id = extract_user_id(utf8ResponseBody)
         ajax_photos_url = "{0}/{1}?v=photos&psm=default&album=t.{2}&__ajax__=&__user={3}".format(
             self.top_url, self.target_username, self.album_id, self.user_id
         )
         return scrapy.Request(ajax_photos_url, callback=self.parse_photos)
 
+    def getUtf8ResponseBody(self, response):
+        return response.body.decode("utf-8")
+
     def parse_photos(self, response):
         def extract_photo_pages(html_str):
-            p = re.compile(ur'href="(/photo\.php.*?)">')
+            p = re.compile(r'href="(/photo\.php.*?)">')
             m = re.findall(p, html_str)
             photo_page_urls = []
             for encoded_url in m:
@@ -73,20 +80,21 @@ class PhotoCrawlerSpider(scrapy.Spider):
 
         # need to throw exception if can't find next_cursor (END condition)
         def extract_next_cursor(html_str):
-            p = re.compile(ur'cursor=(\d*)&')
+            p = re.compile(r'cursor=(\d*)&')
             search = re.search(p, html_str)
             return search.group(1)
 
         def last_photo_query(url, next_cursor):
-            parsed = urlparse.urlparse(url)
-            cursor = urlparse.parse_qs(parsed.query)['cursor']
+            parsed = urllib.parse.urlparse(url)
+            cursor = urllib.parse.parse_qs(parsed.query)['cursor']
             return cursor == next_cursor
 
-
-        if response.body.startswith("for (;;);"):
-            json_obj = json.loads(response.body[9:]) #remove prefix "for (;;);""
+        responseBody = self.getUtf8ResponseBody(response)
+    
+        if responseBody.startswith("for (;;);"):
+            json_obj = json.loads(responseBody[9:]) #remove prefix "for (;;);""
         else:
-            json_obj = json.loads(response.body)
+            json_obj = json.loads(responseBody)
 
         photo_urls = extract_photo_pages(json_obj['payload']['actions'][0]['html'])
         next_cursor = extract_next_cursor(json_obj['payload']['actions'][2]['code'])
@@ -105,12 +113,15 @@ class PhotoCrawlerSpider(scrapy.Spider):
 
     def parse_photo(self, response):
         def extract_full_size_photo_url(s):
-            s = s.replace("\\", "")
-            p = re.compile(ur'class="sec" href="(https://scontent.*?)">View Full Size')
+            s = s.replace('\\', "")
+            p = re.compile(r'href="([^"]+)" +class="sec"> *View Full Size')
             search = re.search(p, s)
-            return BeautifulSoup(search.group(1), 'html.parser').get_text()
+            absoluteUrl = 'https://m.facebook.com/'+search.group(1)
+            return BeautifulSoup(absoluteUrl, 'html.parser').get_text()
 
-        url = extract_full_size_photo_url(response.body)
+        responseBody = self.getUtf8ResponseBody(response)
+        url = extract_full_size_photo_url(responseBody)
+        print("PHOTO URL: "+url)
         fb_photo = FacebookPhoto()
         fb_photo["image_url"] = url
         fb_photo["username"] = self.target_username
