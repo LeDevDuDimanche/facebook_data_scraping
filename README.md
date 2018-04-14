@@ -1,10 +1,10 @@
-# Facebook Data Scraping - Download Photo from your friend's Facebook profile
+# Facebook Data Scraping - Download Photo from your Facebook profile.
 
 ## Why I created this
 
-This is a side project that was quickly developed while I'm working on my Face Recognition project. The Face Recognition project requires a lot of face images for the training and testing purposes. And I was too lazy to save each image from Facebook to my computer so I created this tool to help me with the automatic crawling.
-
-Since it's a quick project (~2 hours development time), there might be inevitable bugs or issues. And because Facebook UI always keep changing so my code might stop working at some point. If you found a bug, or fixed one, please feel free to create a Pull request, and I will look into it. Much appreciate your contribution.
+I forked this repository from stevenvo's profile. I wanted to download all the photos from my facebook profile.
+I modified the script to make it work with python 3. I also changed the way the script parsed the data coming from facebook, because
+facebook changed the way its html responses looked like
 
 ## Prerequisites
 These are the open-source libraries or framework utilized in the project, which **requires installation before hand**:
@@ -12,12 +12,13 @@ These are the open-source libraries or framework utilized in the project, which 
 * [BeautifulSoup](http://www.crummy.com/software/BeautifulSoup/bs4/doc/): a great HTML text entities parsing & formatting library. Installation: `pip install beautifulsoup4`
 * Image module: `pip install image`
 * Twisted module: `pip install twisted`
+* python 3
 
 ## Usage
 
 ### Clone the repository to your machine
 ```
-$ git clone https://github.com/stevenvo/facebook_data_scraping.git
+$ git clone https://github.com/LeDevDuDimanche/facebook_data_scraping.git
 $ cd facebook_data_scraping
 ```
 ### Execute
@@ -28,7 +29,7 @@ scrapy crawl photo_crawler -a email=<email> -a password=<password> -a target_use
 __Parameters:__
 * `email`: login email to your Facebook account.
 * `password`: login password to your Facebook account.
-* `target_username`: Facebook profile ID which you want to crawl all images from. Using your browser and go to your friend's profile page, the profile ID is the string after the split character '/'.
+* `target_username`: Facebook profile ID which you want to crawl all images from. Using your browser and go to your friend's profile or yours, the profile ID is the string after the split character '/'.
   * For example https://www.facebook.com/johnson, the ID will be `johnson`.
 
 All images will be downloaded into folder `downloaded-photos`. The image filename will have 2 parts: 1st part contains the `target_username`, 2nd part is the random file name.
